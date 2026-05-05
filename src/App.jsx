@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import "./index.css";
 
-const STORAGE_KEY = "milena-daniel-travels-v8";
+const STORAGE_KEY = "milena-daniel-travels-v9";
 
 const EXTRA_SECTIONS = [
   { id: "costs", icon: "📊", title: "Szacunkowe koszty", subtitle: "Szybka estymacja kosztów wyjazdu." },
@@ -14,6 +14,77 @@ const EXTRA_SECTIONS = [
 
 const CHECKLIST_CATEGORIES = ["Dokumenty", "Ubrania", "Elektronika", "Auto", "Pies", "Inne"];
 const RESERVATION_TYPES = ["Hotel", "Lot", "Pociąg", "Parking", "Bilet", "Restauracja", "Inne"];
+
+function makeChecklistItems(items) {
+  return items.map((text) => ({ id: id(), text, done: false }));
+}
+
+function createDefaultChecklists() {
+  return {
+    Dokumenty: makeChecklistItems([
+      "Dowody osobiste / paszporty",
+      "Prawo jazdy",
+      "Dowód rejestracyjny auta",
+      "Ubezpieczenie podróżne",
+      "Europejska Karta EKUZ",
+      "Potwierdzenia rezerwacji",
+      "Bilety / vouchery",
+      "Gotówka i karta płatnicza"
+    ]),
+    Ubrania: makeChecklistItems([
+      "Bielizna i skarpetki",
+      "Koszulki / bluzy",
+      "Spodnie / krótkie spodenki",
+      "Kurtka przeciwdeszczowa",
+      "Wygodne buty",
+      "Piżama",
+      "Strój kąpielowy",
+      "Czapka / okulary przeciwsłoneczne"
+    ]),
+    Elektronika: makeChecklistItems([
+      "Ładowarki do telefonów",
+      "Powerbank",
+      "Słuchawki",
+      "Adapter do gniazdka",
+      "Aparat / kamera",
+      "Kable USB",
+      "Uchwyt samochodowy",
+      "Pobrane mapy offline"
+    ]),
+    Auto: makeChecklistItems([
+      "Sprawdzić ciśnienie w oponach",
+      "Sprawdzić poziom oleju",
+      "Sprawdzić płyn do spryskiwaczy",
+      "Zatankować auto",
+      "Kamizelka odblaskowa",
+      "Trójkąt ostrzegawczy",
+      "Winiety / opłaty drogowe",
+      "Dokumenty auta"
+    ]),
+    Pies: makeChecklistItems([
+      "Karma",
+      "Miska",
+      "Woda na drogę",
+      "Smycz i obroża",
+      "Szelki",
+      "Woreczki na odchody",
+      "Koc / legowisko",
+      "Ręcznik dla psa",
+      "Książeczka zdrowia / szczepienia",
+      "Ulubiona zabawka"
+    ]),
+    Inne: makeChecklistItems([
+      "Kosmetyczka",
+      "Leki",
+      "Apteczka",
+      "Chusteczki / mokre chusteczki",
+      "Plecak na zwiedzanie",
+      "Butelka na wodę",
+      "Lista atrakcji",
+      "Plan awaryjny na deszcz"
+    ])
+  };
+}
 
 function id() {
   return crypto?.randomUUID?.() || String(Date.now() + Math.random());
@@ -89,14 +160,7 @@ const demoTrips = [
     note: "Pierwszy szkic wspólnego city breaku.",
     updatedBy: "Daniel",
     reservations: [],
-    checklists: {
-      Dokumenty: [
-        { id: id(), text: "Dowody osobiste / paszporty", done: false },
-        { id: id(), text: "Ubezpieczenie podróżne", done: false }
-      ],
-      Auto: [{ id: id(), text: "Sprawdzić ciśnienie w oponach", done: false }],
-      Pies: [{ id: id(), text: "Karma i miska", done: false }]
-    },
+    checklists: createDefaultChecklists(),
     costs: { km: 3000, days: 5, people: 2, fuelPrice: 6.5, breakfastIncluded: true, standard: "standard", transport: "car" },
     days: {
       "2026-06-12": [
@@ -151,7 +215,9 @@ export default function App() {
   const [activeSection, setActiveSection] = useState("plan");
 
   const [reservationForm, setReservationForm] = useState({ type: "Hotel", name: "", date: "", link: "", cost: "", note: "" });
+  const [showReservationForm, setShowReservationForm] = useState(false);
   const [checklistForm, setChecklistForm] = useState({ category: "Dokumenty", text: "" });
+  const [activeChecklistCategory, setActiveChecklistCategory] = useState("Dokumenty");
 
   useEffect(() => localStorage.setItem(STORAGE_KEY, JSON.stringify(trips)), [trips]);
   useEffect(() => localStorage.setItem("mdt-user", user), [user]);
@@ -192,7 +258,7 @@ export default function App() {
       note: tripForm.note.trim(),
       updatedBy: user,
       reservations: [],
-      checklists: {},
+      checklists: createDefaultChecklists(),
       costs: { km: "", days: tripDays.length, people: 2, fuelPrice: 6.5, breakfastIncluded: false, standard: "standard", transport: "car" },
       days: {}
     };
@@ -308,6 +374,7 @@ export default function App() {
     };
     updateTrip((trip) => ({ ...trip, reservations: [...(trip.reservations || []), item] }));
     setReservationForm({ type: "Hotel", name: "", date: "", link: "", cost: "", note: "" });
+    setShowReservationForm(false);
   }
 
   function deleteReservation(reservationId) {
@@ -359,7 +426,7 @@ export default function App() {
   const costs = selectedTrip?.costs || {};
   const tripDaysCount = days.length || Number(costs.days || 0) || 1;
 
-  const fuelCost = Number(costs.transport || "car") === "car" ? (Number(costs.km || 0) / 100 * 6 * Number(costs.fuelPrice || 0)) : 0;
+  const fuelCost = (costs.transport || "car") === "car" ? (Number(costs.km || 0) / 100 * 6 * Number(costs.fuelPrice || 0)) : 0;
   const standardMultipliers = { budget: 0.8, standard: 1, comfort: 1.35 };
   const mealBase = costs.breakfastIncluded ? 95 : 125;
   const foodCost = tripDaysCount * Number(costs.people || 1) * mealBase * (standardMultipliers[costs.standard || "standard"] || 1);
@@ -494,17 +561,28 @@ export default function App() {
 
             {activeSection === "reservations" && activeExtra && (
               <SectionShell activeExtra={activeExtra} onBack={() => setActiveSection("plan")}>
-                <form className="module-form reservation-form" onSubmit={saveReservation}>
-                  <select value={reservationForm.type} onChange={(e) => setReservationForm({ ...reservationForm, type: e.target.value })}>
-                    {RESERVATION_TYPES.map((type) => <option key={type}>{type}</option>)}
-                  </select>
-                  <input placeholder="Nazwa, np. Hotel Astoria" value={reservationForm.name} onChange={(e) => setReservationForm({ ...reservationForm, name: e.target.value })} />
-                  <input type="date" value={reservationForm.date} onChange={(e) => setReservationForm({ ...reservationForm, date: e.target.value })} />
-                  <input type="number" min="0" placeholder="Koszt PLN" value={reservationForm.cost} onChange={(e) => setReservationForm({ ...reservationForm, cost: e.target.value })} />
-                  <input className="wide" placeholder="Link do rezerwacji / biletu" value={reservationForm.link} onChange={(e) => setReservationForm({ ...reservationForm, link: e.target.value })} />
-                  <textarea className="wide" placeholder="Notatka" value={reservationForm.note} onChange={(e) => setReservationForm({ ...reservationForm, note: e.target.value })} />
-                  <button className="dark wide">Dodaj rezerwację</button>
-                </form>
+                <div className="add-activity-bar">
+                  <button className="primary add-day-button" onClick={() => setShowReservationForm((current) => !current)}>
+                    {showReservationForm ? "Zamknij formularz" : "+ Dodaj rezerwację"}
+                  </button>
+                </div>
+
+                {showReservationForm && (
+                  <form className="module-form reservation-form" onSubmit={saveReservation}>
+                    <select value={reservationForm.type} onChange={(e) => setReservationForm({ ...reservationForm, type: e.target.value })}>
+                      {RESERVATION_TYPES.map((type) => <option key={type}>{type}</option>)}
+                    </select>
+                    <input placeholder="Nazwa, np. Hotel Astoria" value={reservationForm.name} onChange={(e) => setReservationForm({ ...reservationForm, name: e.target.value })} />
+                    <input type="date" value={reservationForm.date} onChange={(e) => setReservationForm({ ...reservationForm, date: e.target.value })} />
+                    <input type="number" min="0" placeholder="Koszt PLN" value={reservationForm.cost} onChange={(e) => setReservationForm({ ...reservationForm, cost: e.target.value })} />
+                    <input className="wide" placeholder="Link do rezerwacji / biletu" value={reservationForm.link} onChange={(e) => setReservationForm({ ...reservationForm, link: e.target.value })} />
+                    <textarea className="wide" placeholder="Notatka" value={reservationForm.note} onChange={(e) => setReservationForm({ ...reservationForm, note: e.target.value })} />
+                    <div className="form-actions wide">
+                      <button className="dark">Dodaj rezerwację</button>
+                      <button type="button" className="light" onClick={() => setShowReservationForm(false)}>Anuluj</button>
+                    </div>
+                  </form>
+                )}
 
                 <div className="module-list">
                   {(selectedTrip.reservations || []).length === 0 ? <div className="empty-small">Brak rezerwacji. Dodaj hotel, bilet albo parking.</div> : selectedTrip.reservations.map((item) => {
@@ -528,16 +606,38 @@ export default function App() {
 
             {activeSection === "checklists" && activeExtra && (
               <SectionShell activeExtra={activeExtra} onBack={() => setActiveSection("plan")}>
+                <div className="category-tabs">
+                  {CHECKLIST_CATEGORIES.map((category) => {
+                    const items = ensureChecklist(selectedTrip)[category] || [];
+                    const done = items.filter((item) => item.done).length;
+                    return (
+                      <button
+                        key={category}
+                        className={activeChecklistCategory === category ? "active" : ""}
+                        onClick={() => {
+                          setActiveChecklistCategory(category);
+                          setChecklistForm({ ...checklistForm, category });
+                        }}
+                      >
+                        {category}
+                        <span>{done}/{items.length}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
                 <form className="module-form checklist-add" onSubmit={saveChecklistItem}>
-                  <select value={checklistForm.category} onChange={(e) => setChecklistForm({ ...checklistForm, category: e.target.value })}>
-                    {CHECKLIST_CATEGORIES.map((cat) => <option key={cat}>{cat}</option>)}
-                  </select>
-                  <input placeholder="Co dodać do checklisty?" value={checklistForm.text} onChange={(e) => setChecklistForm({ ...checklistForm, text: e.target.value })} />
+                  <input
+                    placeholder={`Dodaj do kategorii: ${activeChecklistCategory}`}
+                    value={checklistForm.text}
+                    onChange={(e) => setChecklistForm({ ...checklistForm, category: activeChecklistCategory, text: e.target.value })}
+                  />
                   <button className="dark">Dodaj</button>
                 </form>
 
-                <div className="checklist-grid">
-                  {CHECKLIST_CATEGORIES.map((category) => {
+                <div className="checklist-grid single">
+                  {(() => {
+                    const category = activeChecklistCategory;
                     const items = ensureChecklist(selectedTrip)[category] || [];
                     const done = items.filter((item) => item.done).length;
                     return (
@@ -553,7 +653,7 @@ export default function App() {
                         ))}
                       </div>
                     );
-                  })}
+                  })()}
                 </div>
               </SectionShell>
             )}

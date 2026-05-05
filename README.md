@@ -1,8 +1,7 @@
-# Milena & Daniel Travels v8
+# Milena & Daniel Travels v9
 
-v8 = ładny layout v6 + działające funkcje:
-- Szacunkowe koszty z ręcznym wpisaniem km,
-- Rezerwacje z kosztami i linkami,
-- Checklisty z kategoriami,
-- Sprawdź w okolicy przez Google Maps,
-- Wspomnienia jako placeholder do Firebase.
+Poprawki:
+- Koszty paliwa reagują na kilometry i cenę paliwa.
+- Rezerwacje mają rozwijany formularz po kliknięciu „+ Dodaj rezerwację”.
+- Checklisty pokazują jedną wybraną kategorię zamiast wszystkich naraz.
+- Dodane bogatsze domyślne checklisty dla dokumentów, ubrań, elektroniki, auta, psa i innych rzeczy.
