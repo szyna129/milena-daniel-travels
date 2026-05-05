@@ -2,6 +2,13 @@ import React, { useEffect, useMemo, useState } from "react";
 import "./index.css";
 
 const STORAGE_KEY = "milena-daniel-travels-v2";
+const EXTRA_SECTIONS = [
+  { id: "costs", icon: "📊", title: "Szacunkowe koszty", subtitle: "Transport, jedzenie, noclegi i rezerwa." },
+  { id: "checklists", icon: "🧳", title: "Checklisty", subtitle: "Rzeczy do spakowania i przygotowania." },
+  { id: "reservations", icon: "📑", title: "Rezerwacje", subtitle: "Hotele, bilety, parkingi i linki." },
+  { id: "nearby", icon: "📍", title: "Sprawdź w okolicy", subtitle: "Atrakcje i miejsca blisko Was." },
+  { id: "memories", icon: "📸", title: "Wspomnienia", subtitle: "Zdjęcia i notatki po podróży." }
+];
 
 function id() {
   return crypto?.randomUUID?.() || String(Date.now() + Math.random());
@@ -70,7 +77,7 @@ const demoTrips = [
           time: "15:00",
           title: "Przylot i spacer po centrum",
           address: "https://www.booking.com",
-          description: "Link do noclegu lub rezerwacji jest teraz klikalny.",
+          description: "Link do noclegu lub rezerwacji jest klikalny.",
           completed: false,
           updatedBy: "Daniel"
         }
@@ -96,6 +103,8 @@ export default function App() {
   const [editingActivityId, setEditingActivityId] = useState(null);
   const [tripForm, setTripForm] = useState({ title: "", location: "", startDate: "", endDate: "", note: "" });
   const [activityForm, setActivityForm] = useState({ time: "", title: "", address: "", description: "" });
+  const [showTripMenu, setShowTripMenu] = useState(false);
+  const [activeSection, setActiveSection] = useState("plan");
 
   useEffect(() => localStorage.setItem(STORAGE_KEY, JSON.stringify(trips)), [trips]);
   useEffect(() => localStorage.setItem("mdt-user", user), [user]);
@@ -131,6 +140,7 @@ export default function App() {
     setTrips([trip, ...trips]);
     setSelectedTripId(trip.id);
     setSelectedDay(trip.startDate);
+    setActiveSection("plan");
     setTripForm({ title: "", location: "", startDate: "", endDate: "", note: "" });
     setShowTripForm(false);
   }
@@ -139,6 +149,7 @@ export default function App() {
     const next = trips.filter((trip) => trip.id !== tripId);
     setTrips(next);
     setSelectedTripId(next[0]?.id || null);
+    setActiveSection("plan");
   }
 
   function saveActivity(e) {
@@ -233,10 +244,18 @@ export default function App() {
     setShowActivityForm((current) => !current);
   }
 
+  function openSection(sectionId) {
+    setActiveSection(sectionId);
+    setShowTripMenu(false);
+    setShowActivityForm(false);
+    setEditingActivityId(null);
+  }
+
   const activities = selectedTrip && selectedDay
     ? [...(selectedTrip.days?.[selectedDay] || [])].sort((a, b) => (a.time || "99:99").localeCompare(b.time || "99:99"))
     : [];
   const doneCount = activities.filter((item) => item.completed).length;
+  const activeExtra = EXTRA_SECTIONS.find((section) => section.id === activeSection);
 
   return (
     <div className="app">
@@ -276,7 +295,7 @@ export default function App() {
 
         <div className="trip-list">
           {trips.map((trip) => (
-            <button key={trip.id} className={`trip-card ${selectedTrip?.id === trip.id ? "selected" : ""}`} onClick={() => { setSelectedTripId(trip.id); setSelectedDay(range(trip.startDate, trip.endDate)[0] || null); setShowActivityForm(false); setEditingActivityId(null); }}>
+            <button key={trip.id} className={`trip-card ${selectedTrip?.id === trip.id ? "selected" : ""}`} onClick={() => { setSelectedTripId(trip.id); setSelectedDay(range(trip.startDate, trip.endDate)[0] || null); setShowActivityForm(false); setEditingActivityId(null); setActiveSection("plan"); }}>
               <strong>{trip.title}</strong>
               <span>📍 {trip.location}</span>
               <span>🗓️ {pretty(trip.startDate)} — {pretty(trip.endDate)}</span>
@@ -297,87 +316,127 @@ export default function App() {
                 <h2>{selectedTrip.title}</h2>
                 <p>{selectedTrip.note || "Plan wspólnej podróży, dzień po dniu."}</p>
               </div>
-              <button className="ghost" onClick={() => deleteTrip(selectedTrip.id)}>Usuń</button>
+
+              <div className="hero-actions">
+                <div className="menu-wrap">
+                  <button className="menu-button" onClick={() => setShowTripMenu((current) => !current)} aria-label="Menu podróży">⋯</button>
+                  {showTripMenu && (
+                    <div className="trip-menu">
+                      <button onClick={() => openSection("plan")}>🗓️ Plan dnia</button>
+                      {EXTRA_SECTIONS.map((section) => (
+                        <button key={section.id} onClick={() => openSection(section.id)}>{section.icon} {section.title}</button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <button className="ghost" onClick={() => deleteTrip(selectedTrip.id)}>Usuń</button>
+              </div>
             </section>
 
-            <section className="planner">
-              <div className="days">
-                <h3>Dni podróży</h3>
-                {days.map((day, index) => {
-                  const dayActivities = selectedTrip.days?.[day] || [];
-                  const dayDone = dayActivities.filter((item) => item.completed).length;
-                  return (
-                    <button key={day} className={selectedDay === day ? "active" : ""} onClick={() => { setSelectedDay(day); setShowActivityForm(false); setEditingActivityId(null); }}>
-                      <small>Dzień {index + 1}</small>
-                      <span>{pretty(day)}</span>
-                      <em>{dayDone}/{dayActivities.length} wykonane</em>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="day-plan">
-                <div className="day-header">
+            {activeSection !== "plan" && activeExtra && (
+              <section className="extra-panel">
+                <button className="back-button" onClick={() => setActiveSection("plan")}>← Wróć do planu dnia</button>
+                <div className="extra-header">
+                  <span>{activeExtra.icon}</span>
                   <div>
-                    <h3>Plan dnia</h3>
-                    <p className="muted">{pretty(selectedDay)}</p>
+                    <h2>{activeExtra.title}</h2>
+                    <p>{activeExtra.subtitle}</p>
                   </div>
-                  <div className="progress-pill">{doneCount}/{activities.length} wykonane</div>
                 </div>
 
-                <div className="add-activity-bar">
-                  <button className="primary add-day-button" onClick={openNewActivityForm}>
-                    {showActivityForm && !editingActivityId ? "Zamknij formularz" : "+ Dodaj do dnia"}
-                  </button>
+                <div className="placeholder-grid">
+                  <div className="placeholder-card">
+                    <strong>Widok testowy</strong>
+                    <p>Ta sekcja jest już podłączona do menu. W kolejnym kroku dodamy tu właściwą funkcjonalność.</p>
+                  </div>
+                  <div className="placeholder-card soft">
+                    <strong>Podróż</strong>
+                    <p>{selectedTrip.title} · {selectedTrip.location}</p>
+                  </div>
                 </div>
+              </section>
+            )}
 
-                {showActivityForm && (
-                  <form className="activity-form" onSubmit={saveActivity}>
-                    <input type="time" value={activityForm.time} onChange={(e) => setActivityForm({ ...activityForm, time: e.target.value })} />
-                    <input placeholder="Atrakcja / miejsce" value={activityForm.title} onChange={(e) => setActivityForm({ ...activityForm, title: e.target.value })} />
-                    <input className="full" placeholder="Adres, link Google Maps, Booking, bilety..." value={activityForm.address} onChange={(e) => setActivityForm({ ...activityForm, address: e.target.value })} />
-                    <textarea className="full" placeholder="Opis, notatka, koszt, rezerwacja..." value={activityForm.description} onChange={(e) => setActivityForm({ ...activityForm, description: e.target.value })} />
-                    <div className="form-actions full">
-                      <button className="dark">{editingActivityId ? "Zapisz zmiany" : "Dodaj do dnia"}</button>
-                      <button type="button" className="light" onClick={cancelEditing}>Anuluj</button>
-                    </div>
-                  </form>
-                )}
-
-                <div className="activities">
-                  {activities.length === 0 ? <div className="empty-small">Ten dzień jest jeszcze pusty. Kliknij „Dodaj do dnia”, aby dodać pierwszą atrakcję.</div> : activities.map((activity) => {
-                    const url = normalizeUrl(activity.address);
-                    const mapsUrl = activity.address && !url ? googleMapsUrl(activity.address) : "";
+            {activeSection === "plan" && (
+              <section className="planner">
+                <div className="days">
+                  <h3>Dni podróży</h3>
+                  {days.map((day, index) => {
+                    const dayActivities = selectedTrip.days?.[day] || [];
+                    const dayDone = dayActivities.filter((item) => item.completed).length;
                     return (
-                      <article className={`activity ${activity.completed ? "completed" : ""}`} key={activity.id}>
-                        <div className="activity-main">
-                          <button className={`check ${activity.completed ? "checked" : ""}`} onClick={() => toggleCompleted(activity.id)} title={activity.completed ? "Oznacz jako niewykonane" : "Oznacz jako wykonane"}>
-                            {activity.completed ? "✓" : ""}
-                          </button>
-                          <div>
-                            <span className="time">{activity.time || "bez godziny"}</span>
-                            <h4>{activity.title}</h4>
-                            {activity.address && (
-                              <div className="link-row">
-                                {url ? <a href={url} target="_blank" rel="noreferrer">Otwórz link ↗</a> : <a href={mapsUrl} target="_blank" rel="noreferrer">Otwórz w Google Maps ↗</a>}
-                                <span>{activity.address}</span>
-                              </div>
-                            )}
-                            {activity.description && <p>{activity.description}</p>}
-                            {activity.updatedBy && <small>Ostatnio edytował(a): {activity.updatedBy}</small>}
-                          </div>
-                        </div>
-                        <div className="actions">
-                          <button onClick={() => editActivity(activity)}>Edytuj</button>
-                          <button onClick={() => moveActivityToNextDay(activity)}>Na kolejny dzień</button>
-                          <button onClick={() => deleteActivity(activity.id)}>Usuń</button>
-                        </div>
-                      </article>
+                      <button key={day} className={selectedDay === day ? "active" : ""} onClick={() => { setSelectedDay(day); setShowActivityForm(false); setEditingActivityId(null); }}>
+                        <small>Dzień {index + 1}</small>
+                        <span>{pretty(day)}</span>
+                        <em>{dayDone}/{dayActivities.length} wykonane</em>
+                      </button>
                     );
                   })}
                 </div>
-              </div>
-            </section>
+
+                <div className="day-plan">
+                  <div className="day-header">
+                    <div>
+                      <h3>Plan dnia</h3>
+                      <p className="muted">{pretty(selectedDay)}</p>
+                    </div>
+                    <div className="progress-pill">{doneCount}/{activities.length} wykonane</div>
+                  </div>
+
+                  <div className="add-activity-bar">
+                    <button className="primary add-day-button" onClick={openNewActivityForm}>
+                      {showActivityForm && !editingActivityId ? "Zamknij formularz" : "+ Dodaj do dnia"}
+                    </button>
+                  </div>
+
+                  {showActivityForm && (
+                    <form className="activity-form" onSubmit={saveActivity}>
+                      <input type="time" value={activityForm.time} onChange={(e) => setActivityForm({ ...activityForm, time: e.target.value })} />
+                      <input placeholder="Atrakcja / miejsce" value={activityForm.title} onChange={(e) => setActivityForm({ ...activityForm, title: e.target.value })} />
+                      <input className="full" placeholder="Adres, link Google Maps, Booking, bilety..." value={activityForm.address} onChange={(e) => setActivityForm({ ...activityForm, address: e.target.value })} />
+                      <textarea className="full" placeholder="Opis, notatka, koszt, rezerwacja..." value={activityForm.description} onChange={(e) => setActivityForm({ ...activityForm, description: e.target.value })} />
+                      <div className="form-actions full">
+                        <button className="dark">{editingActivityId ? "Zapisz zmiany" : "Dodaj do dnia"}</button>
+                        <button type="button" className="light" onClick={cancelEditing}>Anuluj</button>
+                      </div>
+                    </form>
+                  )}
+
+                  <div className="activities">
+                    {activities.length === 0 ? <div className="empty-small">Ten dzień jest jeszcze pusty. Kliknij „Dodaj do dnia”, aby dodać pierwszą atrakcję.</div> : activities.map((activity) => {
+                      const url = normalizeUrl(activity.address);
+                      const mapsUrl = activity.address && !url ? googleMapsUrl(activity.address) : "";
+                      return (
+                        <article className={`activity ${activity.completed ? "completed" : ""}`} key={activity.id}>
+                          <div className="activity-main">
+                            <button className={`check ${activity.completed ? "checked" : ""}`} onClick={() => toggleCompleted(activity.id)} title={activity.completed ? "Oznacz jako niewykonane" : "Oznacz jako wykonane"}>
+                              {activity.completed ? "✓" : ""}
+                            </button>
+                            <div>
+                              <span className="time">{activity.time || "bez godziny"}</span>
+                              <h4>{activity.title}</h4>
+                              {activity.address && (
+                                <div className="link-row">
+                                  {url ? <a href={url} target="_blank" rel="noreferrer">Otwórz link ↗</a> : <a href={mapsUrl} target="_blank" rel="noreferrer">Otwórz w Google Maps ↗</a>}
+                                  <span>{activity.address}</span>
+                                </div>
+                              )}
+                              {activity.description && <p>{activity.description}</p>}
+                              {activity.updatedBy && <small>Ostatnio edytował(a): {activity.updatedBy}</small>}
+                            </div>
+                          </div>
+                          <div className="actions">
+                            <button onClick={() => editActivity(activity)}>Edytuj</button>
+                            <button onClick={() => moveActivityToNextDay(activity)}>Na kolejny dzień</button>
+                            <button onClick={() => deleteActivity(activity.id)}>Usuń</button>
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                </div>
+              </section>
+            )}
           </>
         )}
       </main>

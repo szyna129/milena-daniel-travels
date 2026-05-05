@@ -1,6 +1,7 @@
-# Milena & Daniel Travels v5 fixed
+# Milena & Daniel Travels v6
 
-Poprawiona wersja v5:
-- zachowuje pełną aplikację z v3,
-- dodaje nowe zdjęcie wyłącznie jako tło hero,
-- zachowuje dodawanie podróży, plan dnia, aktywności, odhaczanie, linki i przenoszenie na kolejny dzień.
+Nowości:
+- Menu „⋯” w prawym górnym rogu hero podróży.
+- Sekcje testowe: Szacunkowe koszty, Checklisty, Rezerwacje, Sprawdź w okolicy, Wspomnienia.
+- Powrót do planu dnia.
+- Zachowane funkcje: plan dnia, aktywności, linki, odhaczanie, przenoszenie na kolejny dzień.
