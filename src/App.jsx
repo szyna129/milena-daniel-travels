@@ -346,6 +346,12 @@ export default function App() {
   }
 
   function deleteTrip(tripId) {
+    const tripToDelete = trips.find((trip) => trip.id === tripId);
+    const tripName = tripToDelete?.title || "tę podróż";
+    const confirmDelete = window.confirm(`Czy na pewno chcesz usunąć podróż „${tripName}”?`);
+
+    if (!confirmDelete) return;
+
     const next = trips.filter((trip) => trip.id !== tripId);
     setTrips(next);
     setSelectedTripId(next[0]?.id || null);
@@ -573,6 +579,18 @@ export default function App() {
                       {EXTRA_SECTIONS.map((section) => (
                         <button key={section.id} onClick={() => openSection(section.id)}>{section.icon} {section.title}</button>
                       ))}
+
+                      <div className="trip-menu-divider" />
+
+                      <button
+                        className="danger-menu-item"
+                        onClick={() => {
+                          setShowTripMenu(false);
+                          deleteTrip(selectedTrip.id);
+                        }}
+                      >
+                        🗑️ Usuń podróż
+                      </button>
                     </div>
                   )}
                 </div>

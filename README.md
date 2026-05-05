@@ -1,12 +1,7 @@
-# Milena & Daniel Travels v10 Firebase
+# Milena & Daniel Travels v13
 
-Nowości:
-- Firebase Firestore jako wspólna baza danych.
-- Synchronizacja między urządzeniami.
-- Usunięty wybór użytkownika.
-- Usunięty lokalny żółty komunikat.
-- Aplikacja nadal zapisuje awaryjnie kopię w localStorage.
-
-Wymagane w Firebase:
-- Firestore Database utworzone.
-- Reguły testowe albo reguły pozwalające na zapis/odczyt dokumentu shared/milena-daniel-travels.
+Poprawka:
+- „Usuń podróż” jest na dole menu ⋯.
+- Przycisk jest czerwony i oddzielony linią od reszty opcji.
+- Usunięcie wymaga potwierdzenia.
+- Firebase i synchronizacja zostają zachowane.

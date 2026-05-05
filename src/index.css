@@ -10,3 +10,20 @@
 .sync-pill span{font-size:22px}
 .sync-pill strong{display:block;font-size:14px}
 .sync-pill small{display:block;color:#78716c;margin-top:3px;line-height:1.35}
+
+
+.trip-menu-divider{
+  height:1px;
+  background:#e7e5e4;
+  margin:8px 6px;
+}
+.trip-menu .danger-menu-item{
+  color:#b91c1c;
+  background:#fff5f5;
+  border:1px solid #fecaca;
+  margin-top:4px;
+}
+.trip-menu .danger-menu-item:hover{
+  background:#fee2e2;
+  color:#991b1b;
+}
