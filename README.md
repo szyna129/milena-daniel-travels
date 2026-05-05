@@ -1,8 +1,8 @@
-# Milena & Daniel Travels
+# Milena & Daniel Travels v3
 
 Nowości:
-- Klikalne linki do Booking, hoteli, biletów i innych stron.
-- Jeśli wpisany tekst nie jest linkiem, aplikacja tworzy link do Google Maps.
-- Odhaczanie wykonanych atrakcji.
-- Przenoszenie atrakcji na kolejny dzień podróży.
-- Licznik wykonanych punktów w planie dnia.
+- Formularz dodawania aktywności jest domyślnie ukryty.
+- W planie dnia najpierw widać zaplanowane aktywności.
+- Przycisk „+ Dodaj do dnia” rozwija formularz dopiero po kliknięciu.
+- Edycja aktywności automatycznie otwiera formularz.
+- Zachowane: klikalne linki, Google Maps, odhaczanie i przenoszenie na kolejny dzień.
