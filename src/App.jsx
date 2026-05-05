@@ -1,14 +1,19 @@
+
 import React, { useEffect, useMemo, useState } from "react";
 import "./index.css";
 
-const STORAGE_KEY = "milena-daniel-travels-v2";
+const STORAGE_KEY = "milena-daniel-travels-v8";
+
 const EXTRA_SECTIONS = [
-  { id: "costs", icon: "📊", title: "Szacunkowe koszty", subtitle: "Transport, jedzenie, noclegi i rezerwa." },
+  { id: "costs", icon: "📊", title: "Szacunkowe koszty", subtitle: "Szybka estymacja kosztów wyjazdu." },
   { id: "checklists", icon: "🧳", title: "Checklisty", subtitle: "Rzeczy do spakowania i przygotowania." },
   { id: "reservations", icon: "📑", title: "Rezerwacje", subtitle: "Hotele, bilety, parkingi i linki." },
-  { id: "nearby", icon: "📍", title: "Sprawdź w okolicy", subtitle: "Atrakcje i miejsca blisko Was." },
-  { id: "memories", icon: "📸", title: "Wspomnienia", subtitle: "Zdjęcia i notatki po podróży." }
+  { id: "nearby", icon: "📍", title: "Sprawdź w okolicy", subtitle: "Szybkie wyszukiwania w Google Maps." },
+  { id: "memories", icon: "📸", title: "Wspomnienia", subtitle: "Miejsce na zdjęcia i notatki po podróży." }
 ];
+
+const CHECKLIST_CATEGORIES = ["Dokumenty", "Ubrania", "Elektronika", "Auto", "Pies", "Inne"];
+const RESERVATION_TYPES = ["Hotel", "Lot", "Pociąg", "Parking", "Bilet", "Restauracja", "Inne"];
 
 function id() {
   return crypto?.randomUUID?.() || String(Date.now() + Math.random());
@@ -61,6 +66,19 @@ function getNextDay(days, currentDay) {
   return days[index + 1];
 }
 
+function money(value) {
+  const n = Number(value || 0);
+  return new Intl.NumberFormat("pl-PL", { style: "currency", currency: "PLN", maximumFractionDigits: 0 }).format(n);
+}
+
+function sumReservations(trip) {
+  return (trip?.reservations || []).reduce((sum, item) => sum + Number(item.cost || 0), 0);
+}
+
+function ensureChecklist(trip) {
+  return trip?.checklists || {};
+}
+
 const demoTrips = [
   {
     id: id(),
@@ -70,6 +88,16 @@ const demoTrips = [
     endDate: "2026-06-16",
     note: "Pierwszy szkic wspólnego city breaku.",
     updatedBy: "Daniel",
+    reservations: [],
+    checklists: {
+      Dokumenty: [
+        { id: id(), text: "Dowody osobiste / paszporty", done: false },
+        { id: id(), text: "Ubezpieczenie podróżne", done: false }
+      ],
+      Auto: [{ id: id(), text: "Sprawdzić ciśnienie w oponach", done: false }],
+      Pies: [{ id: id(), text: "Karma i miska", done: false }]
+    },
+    costs: { km: 3000, days: 5, people: 2, fuelPrice: 6.5, breakfastIncluded: true, standard: "standard", transport: "car" },
     days: {
       "2026-06-12": [
         {
@@ -85,6 +113,22 @@ const demoTrips = [
     }
   }
 ];
+
+function SectionShell({ activeExtra, onBack, children }) {
+  return (
+    <section className="extra-panel">
+      <button className="back-button" onClick={onBack}>← Wróć do planu dnia</button>
+      <div className="extra-header">
+        <span>{activeExtra.icon}</span>
+        <div>
+          <h2>{activeExtra.title}</h2>
+          <p>{activeExtra.subtitle}</p>
+        </div>
+      </div>
+      {children}
+    </section>
+  );
+}
 
 export default function App() {
   const [user, setUser] = useState(() => localStorage.getItem("mdt-user") || "Daniel");
@@ -106,6 +150,9 @@ export default function App() {
   const [showTripMenu, setShowTripMenu] = useState(false);
   const [activeSection, setActiveSection] = useState("plan");
 
+  const [reservationForm, setReservationForm] = useState({ type: "Hotel", name: "", date: "", link: "", cost: "", note: "" });
+  const [checklistForm, setChecklistForm] = useState({ category: "Dokumenty", text: "" });
+
   useEffect(() => localStorage.setItem(STORAGE_KEY, JSON.stringify(trips)), [trips]);
   useEffect(() => localStorage.setItem("mdt-user", user), [user]);
 
@@ -117,6 +164,14 @@ export default function App() {
     if (selectedDay && !days.includes(selectedDay)) setSelectedDay(days[0] || null);
   }, [days, selectedDay]);
 
+  function updateTrip(updater) {
+    setTrips((current) => current.map((trip) => {
+      if (trip.id !== selectedTrip.id) return trip;
+      const nextTrip = updater(trip);
+      return { ...nextTrip, updatedBy: user };
+    }));
+  }
+
   function addTrip(e) {
     e.preventDefault();
     if (!tripForm.title.trim() || !tripForm.startDate || !tripForm.endDate) {
@@ -127,6 +182,7 @@ export default function App() {
       alert("Data zakończenia nie może być wcześniejsza niż data startu.");
       return;
     }
+    const tripDays = range(tripForm.startDate, tripForm.endDate);
     const trip = {
       id: id(),
       title: tripForm.title.trim(),
@@ -135,6 +191,9 @@ export default function App() {
       endDate: tripForm.endDate,
       note: tripForm.note.trim(),
       updatedBy: user,
+      reservations: [],
+      checklists: {},
+      costs: { km: "", days: tripDays.length, people: 2, fuelPrice: 6.5, breakfastIncluded: false, standard: "standard", transport: "car" },
       days: {}
     };
     setTrips([trip, ...trips]);
@@ -165,14 +224,13 @@ export default function App() {
       completed: existing?.completed || false,
       updatedBy: user
     };
-    setTrips((currentTrips) => currentTrips.map((trip) => {
-      if (trip.id !== selectedTrip.id) return trip;
+    updateTrip((trip) => {
       const currentActivities = trip.days?.[selectedDay] || [];
       const nextActivities = editingActivityId
         ? currentActivities.map((item) => item.id === editingActivityId ? activity : item)
         : [...currentActivities, activity];
-      return { ...trip, updatedBy: user, days: { ...trip.days, [selectedDay]: nextActivities } };
-    }));
+      return { ...trip, days: { ...trip.days, [selectedDay]: nextActivities } };
+    });
     setEditingActivityId(null);
     setShowActivityForm(false);
     setActivityForm({ time: "", title: "", address: "", description: "" });
@@ -181,34 +239,22 @@ export default function App() {
   function editActivity(activity) {
     setEditingActivityId(activity.id);
     setShowActivityForm(true);
-    setActivityForm({
-      time: activity.time || "",
-      title: activity.title || "",
-      address: activity.address || "",
-      description: activity.description || ""
-    });
+    setActivityForm({ time: activity.time || "", title: activity.title || "", address: activity.address || "", description: activity.description || "" });
   }
 
   function deleteActivity(activityId) {
-    setTrips((currentTrips) => currentTrips.map((trip) => {
-      if (trip.id !== selectedTrip.id) return trip;
-      return { ...trip, updatedBy: user, days: { ...trip.days, [selectedDay]: (trip.days?.[selectedDay] || []).filter((item) => item.id !== activityId) } };
-    }));
+    updateTrip((trip) => ({ ...trip, days: { ...trip.days, [selectedDay]: (trip.days?.[selectedDay] || []).filter((item) => item.id !== activityId) } }));
   }
 
   function toggleCompleted(activityId) {
-    setTrips((currentTrips) => currentTrips.map((trip) => {
-      if (trip.id !== selectedTrip.id) return trip;
-      return {
-        ...trip,
-        updatedBy: user,
-        days: {
-          ...trip.days,
-          [selectedDay]: (trip.days?.[selectedDay] || []).map((item) =>
-            item.id === activityId ? { ...item, completed: !item.completed, updatedBy: user } : item
-          )
-        }
-      };
+    updateTrip((trip) => ({
+      ...trip,
+      days: {
+        ...trip.days,
+        [selectedDay]: (trip.days?.[selectedDay] || []).map((item) =>
+          item.id === activityId ? { ...item, completed: !item.completed, updatedBy: user } : item
+        )
+      }
     }));
   }
 
@@ -218,17 +264,13 @@ export default function App() {
       alert("To jest ostatni dzień podróży — nie ma kolejnego dnia.");
       return;
     }
-    setTrips((currentTrips) => currentTrips.map((trip) => {
-      if (trip.id !== selectedTrip.id) return trip;
-      return {
-        ...trip,
-        updatedBy: user,
-        days: {
-          ...trip.days,
-          [selectedDay]: (trip.days?.[selectedDay] || []).filter((item) => item.id !== activity.id),
-          [nextDay]: [...(trip.days?.[nextDay] || []), { ...activity, completed: false, updatedBy: user }]
-        }
-      };
+    updateTrip((trip) => ({
+      ...trip,
+      days: {
+        ...trip.days,
+        [selectedDay]: (trip.days?.[selectedDay] || []).filter((item) => item.id !== activity.id),
+        [nextDay]: [...(trip.days?.[nextDay] || []), { ...activity, completed: false, updatedBy: user }]
+      }
     }));
   }
 
@@ -251,11 +293,80 @@ export default function App() {
     setEditingActivityId(null);
   }
 
+  function saveReservation(e) {
+    e.preventDefault();
+    if (!reservationForm.name.trim()) return;
+    const item = {
+      id: id(),
+      type: reservationForm.type,
+      name: reservationForm.name.trim(),
+      date: reservationForm.date,
+      link: reservationForm.link.trim(),
+      cost: Number(reservationForm.cost || 0),
+      note: reservationForm.note.trim(),
+      updatedBy: user
+    };
+    updateTrip((trip) => ({ ...trip, reservations: [...(trip.reservations || []), item] }));
+    setReservationForm({ type: "Hotel", name: "", date: "", link: "", cost: "", note: "" });
+  }
+
+  function deleteReservation(reservationId) {
+    updateTrip((trip) => ({ ...trip, reservations: (trip.reservations || []).filter((item) => item.id !== reservationId) }));
+  }
+
+  function saveChecklistItem(e) {
+    e.preventDefault();
+    if (!checklistForm.text.trim()) return;
+    const item = { id: id(), text: checklistForm.text.trim(), done: false, updatedBy: user };
+    updateTrip((trip) => {
+      const current = ensureChecklist(trip);
+      const categoryItems = current[checklistForm.category] || [];
+      return { ...trip, checklists: { ...current, [checklistForm.category]: [...categoryItems, item] } };
+    });
+    setChecklistForm({ ...checklistForm, text: "" });
+  }
+
+  function toggleChecklist(category, itemId) {
+    updateTrip((trip) => {
+      const current = ensureChecklist(trip);
+      return {
+        ...trip,
+        checklists: {
+          ...current,
+          [category]: (current[category] || []).map((item) => item.id === itemId ? { ...item, done: !item.done } : item)
+        }
+      };
+    });
+  }
+
+  function deleteChecklistItem(category, itemId) {
+    updateTrip((trip) => {
+      const current = ensureChecklist(trip);
+      return { ...trip, checklists: { ...current, [category]: (current[category] || []).filter((item) => item.id !== itemId) } };
+    });
+  }
+
+  function updateCosts(field, value) {
+    updateTrip((trip) => ({ ...trip, costs: { ...(trip.costs || {}), [field]: value } }));
+  }
+
   const activities = selectedTrip && selectedDay
     ? [...(selectedTrip.days?.[selectedDay] || [])].sort((a, b) => (a.time || "99:99").localeCompare(b.time || "99:99"))
     : [];
   const doneCount = activities.filter((item) => item.completed).length;
   const activeExtra = EXTRA_SECTIONS.find((section) => section.id === activeSection);
+  const reservationTotal = sumReservations(selectedTrip);
+  const costs = selectedTrip?.costs || {};
+  const tripDaysCount = days.length || Number(costs.days || 0) || 1;
+
+  const fuelCost = Number(costs.transport || "car") === "car" ? (Number(costs.km || 0) / 100 * 6 * Number(costs.fuelPrice || 0)) : 0;
+  const standardMultipliers = { budget: 0.8, standard: 1, comfort: 1.35 };
+  const mealBase = costs.breakfastIncluded ? 95 : 125;
+  const foodCost = tripDaysCount * Number(costs.people || 1) * mealBase * (standardMultipliers[costs.standard || "standard"] || 1);
+  const attractionsCost = tripDaysCount * Number(costs.people || 1) * 70 * (standardMultipliers[costs.standard || "standard"] || 1);
+  const baseEstimatedTotal = fuelCost + foodCost + attractionsCost + reservationTotal;
+  const estimateMin = Math.round(baseEstimatedTotal * 0.9);
+  const estimateMax = Math.round(baseEstimatedTotal * 1.2);
 
   return (
     <div className="app">
@@ -282,7 +393,7 @@ export default function App() {
 
         {showTripForm && (
           <form className="card form" onSubmit={addTrip}>
-            <input placeholder="Nazwa, np. Paryż 2027" value={tripForm.title} onChange={(e) => setTripForm({ ...tripForm, title: e.target.value })} />
+            <input placeholder="Nazwa, np. Budapeszt 2026" value={tripForm.title} onChange={(e) => setTripForm({ ...tripForm, title: e.target.value })} />
             <input placeholder="Miejsce / kraj" value={tripForm.location} onChange={(e) => setTripForm({ ...tripForm, location: e.target.value })} />
             <div className="row">
               <input type="date" value={tripForm.startDate} onChange={(e) => setTripForm({ ...tripForm, startDate: e.target.value })} />
@@ -333,28 +444,147 @@ export default function App() {
               </div>
             </section>
 
-            {activeSection !== "plan" && activeExtra && (
-              <section className="extra-panel">
-                <button className="back-button" onClick={() => setActiveSection("plan")}>← Wróć do planu dnia</button>
-                <div className="extra-header">
-                  <span>{activeExtra.icon}</span>
-                  <div>
-                    <h2>{activeExtra.title}</h2>
-                    <p>{activeExtra.subtitle}</p>
-                  </div>
-                </div>
+            {activeSection === "costs" && activeExtra && (
+              <SectionShell activeExtra={activeExtra} onBack={() => setActiveSection("plan")}>
+                <div className="cost-layout">
+                  <form className="module-form">
+                    <label>Transport
+                      <select value={costs.transport || "car"} onChange={(e) => updateCosts("transport", e.target.value)}>
+                        <option value="car">Samochód</option>
+                        <option value="train">Pociąg / autobus</option>
+                        <option value="plane">Samolot</option>
+                      </select>
+                    </label>
+                    <label>Kilometry w obie strony
+                      <input type="number" min="0" value={costs.km || ""} onChange={(e) => updateCosts("km", e.target.value)} placeholder="np. 3000" />
+                    </label>
+                    <label>Cena paliwa PLN/l
+                      <input type="number" min="0" step="0.01" value={costs.fuelPrice || ""} onChange={(e) => updateCosts("fuelPrice", e.target.value)} placeholder="np. 6.50" />
+                    </label>
+                    <label>Liczba osób
+                      <input type="number" min="1" value={costs.people || 2} onChange={(e) => updateCosts("people", e.target.value)} />
+                    </label>
+                    <label>Standard
+                      <select value={costs.standard || "standard"} onChange={(e) => updateCosts("standard", e.target.value)}>
+                        <option value="budget">Oszczędnie</option>
+                        <option value="standard">Średnio</option>
+                        <option value="comfort">Komfortowo</option>
+                      </select>
+                    </label>
+                    <label className="checkbox-row">
+                      <input type="checkbox" checked={Boolean(costs.breakfastIncluded)} onChange={(e) => updateCosts("breakfastIncluded", e.target.checked)} />
+                      Śniadanie w hotelu
+                    </label>
+                  </form>
 
-                <div className="placeholder-grid">
-                  <div className="placeholder-card">
-                    <strong>Widok testowy</strong>
-                    <p>Ta sekcja jest już podłączona do menu. W kolejnym kroku dodamy tu właściwą funkcjonalność.</p>
-                  </div>
-                  <div className="placeholder-card soft">
-                    <strong>Podróż</strong>
-                    <p>{selectedTrip.title} · {selectedTrip.location}</p>
+                  <div className="cost-summary">
+                    <p className="summary-label">Szacunkowy koszt wycieczki</p>
+                    <h3>{money(estimateMin)} – {money(estimateMax)}</h3>
+                    <div className="summary-lines">
+                      <span>Paliwo: <strong>{money(fuelCost)}</strong></span>
+                      <span>Jedzenie: <strong>{money(foodCost)}</strong></span>
+                      <span>Atrakcje / zapas: <strong>{money(attractionsCost)}</strong></span>
+                      <span>Rezerwacje: <strong>{money(reservationTotal)}</strong></span>
+                    </div>
+                    <p className="hint">Założenie: Skoda, spalanie 6 l / 100 km. To szybki szacunek, nie dokładny budżet.</p>
                   </div>
                 </div>
-              </section>
+              </SectionShell>
+            )}
+
+            {activeSection === "reservations" && activeExtra && (
+              <SectionShell activeExtra={activeExtra} onBack={() => setActiveSection("plan")}>
+                <form className="module-form reservation-form" onSubmit={saveReservation}>
+                  <select value={reservationForm.type} onChange={(e) => setReservationForm({ ...reservationForm, type: e.target.value })}>
+                    {RESERVATION_TYPES.map((type) => <option key={type}>{type}</option>)}
+                  </select>
+                  <input placeholder="Nazwa, np. Hotel Astoria" value={reservationForm.name} onChange={(e) => setReservationForm({ ...reservationForm, name: e.target.value })} />
+                  <input type="date" value={reservationForm.date} onChange={(e) => setReservationForm({ ...reservationForm, date: e.target.value })} />
+                  <input type="number" min="0" placeholder="Koszt PLN" value={reservationForm.cost} onChange={(e) => setReservationForm({ ...reservationForm, cost: e.target.value })} />
+                  <input className="wide" placeholder="Link do rezerwacji / biletu" value={reservationForm.link} onChange={(e) => setReservationForm({ ...reservationForm, link: e.target.value })} />
+                  <textarea className="wide" placeholder="Notatka" value={reservationForm.note} onChange={(e) => setReservationForm({ ...reservationForm, note: e.target.value })} />
+                  <button className="dark wide">Dodaj rezerwację</button>
+                </form>
+
+                <div className="module-list">
+                  {(selectedTrip.reservations || []).length === 0 ? <div className="empty-small">Brak rezerwacji. Dodaj hotel, bilet albo parking.</div> : selectedTrip.reservations.map((item) => {
+                    const url = normalizeUrl(item.link);
+                    return (
+                      <article className="module-card" key={item.id}>
+                        <div>
+                          <span className="tag">{item.type}</span>
+                          <h3>{item.name}</h3>
+                          <p>{item.date ? pretty(item.date) : "bez daty"} · {money(item.cost)}</p>
+                          {item.link && <p>{url ? <a href={url} target="_blank" rel="noreferrer">Otwórz link ↗</a> : item.link}</p>}
+                          {item.note && <p>{item.note}</p>}
+                        </div>
+                        <button onClick={() => deleteReservation(item.id)}>Usuń</button>
+                      </article>
+                    );
+                  })}
+                </div>
+              </SectionShell>
+            )}
+
+            {activeSection === "checklists" && activeExtra && (
+              <SectionShell activeExtra={activeExtra} onBack={() => setActiveSection("plan")}>
+                <form className="module-form checklist-add" onSubmit={saveChecklistItem}>
+                  <select value={checklistForm.category} onChange={(e) => setChecklistForm({ ...checklistForm, category: e.target.value })}>
+                    {CHECKLIST_CATEGORIES.map((cat) => <option key={cat}>{cat}</option>)}
+                  </select>
+                  <input placeholder="Co dodać do checklisty?" value={checklistForm.text} onChange={(e) => setChecklistForm({ ...checklistForm, text: e.target.value })} />
+                  <button className="dark">Dodaj</button>
+                </form>
+
+                <div className="checklist-grid">
+                  {CHECKLIST_CATEGORIES.map((category) => {
+                    const items = ensureChecklist(selectedTrip)[category] || [];
+                    const done = items.filter((item) => item.done).length;
+                    return (
+                      <div className="checklist-box" key={category}>
+                        <h3>{category}</h3>
+                        <p>{done}/{items.length} gotowe</p>
+                        {items.length === 0 ? <span className="mini-empty">Brak pozycji</span> : items.map((item) => (
+                          <div className="checklist-item" key={item.id}>
+                            <button className={`mini-check ${item.done ? "done" : ""}`} onClick={() => toggleChecklist(category, item.id)}>{item.done ? "✓" : ""}</button>
+                            <span className={item.done ? "done-text" : ""}>{item.text}</span>
+                            <button className="tiny-delete" onClick={() => deleteChecklistItem(category, item.id)}>×</button>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              </SectionShell>
+            )}
+
+            {activeSection === "nearby" && activeExtra && (
+              <SectionShell activeExtra={activeExtra} onBack={() => setActiveSection("plan")}>
+                <div className="nearby-grid">
+                  {[
+                    ["Atrakcje w okolicy", "attractions near me"],
+                    ["Restauracje w okolicy", "restaurants near me"],
+                    ["Kawiarnie w okolicy", "cafes near me"],
+                    ["Parking w okolicy", "parking near me"],
+                    ["Punkty widokowe", "viewpoints near me"],
+                    ["Sklepy spożywcze", "grocery stores near me"]
+                  ].map(([label, query]) => (
+                    <a key={label} className="nearby-card" href={googleMapsUrl(query)} target="_blank" rel="noreferrer">
+                      <strong>{label}</strong>
+                      <span>Otwórz Google Maps ↗</span>
+                    </a>
+                  ))}
+                </div>
+              </SectionShell>
+            )}
+
+            {activeSection === "memories" && activeExtra && (
+              <SectionShell activeExtra={activeExtra} onBack={() => setActiveSection("plan")}>
+                <div className="placeholder-card soft">
+                  <strong>Wspomnienia dodamy po Firebase</strong>
+                  <p>Zdjęcia najlepiej zapisywać w chmurze, żeby nie zapchać pamięci telefonu i żeby działały u Ciebie oraz u Mileny.</p>
+                </div>
+              </SectionShell>
             )}
 
             {activeSection === "plan" && (

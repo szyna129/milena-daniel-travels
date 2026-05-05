@@ -1,7 +1,8 @@
-# Milena & Daniel Travels v6
+# Milena & Daniel Travels v8
 
-Nowości:
-- Menu „⋯” w prawym górnym rogu hero podróży.
-- Sekcje testowe: Szacunkowe koszty, Checklisty, Rezerwacje, Sprawdź w okolicy, Wspomnienia.
-- Powrót do planu dnia.
-- Zachowane funkcje: plan dnia, aktywności, linki, odhaczanie, przenoszenie na kolejny dzień.
+v8 = ładny layout v6 + działające funkcje:
+- Szacunkowe koszty z ręcznym wpisaniem km,
+- Rezerwacje z kosztami i linkami,
+- Checklisty z kategoriami,
+- Sprawdź w okolicy przez Google Maps,
+- Wspomnienia jako placeholder do Firebase.
