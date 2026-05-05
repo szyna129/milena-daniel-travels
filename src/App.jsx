@@ -1,8 +1,23 @@
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { initializeApp } from "firebase/app";
+import { doc, getFirestore, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
 import "./index.css";
 
-const STORAGE_KEY = "milena-daniel-travels-v9";
+const STORAGE_KEY = "milena-daniel-travels-v10-firebase";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyATGqAHC4jy3uGUHwdx8wth-VhaFPD3Xlc",
+  authDomain: "milena-daniel-travels.firebaseapp.com",
+  projectId: "milena-daniel-travels",
+  storageBucket: "milena-daniel-travels.firebasestorage.app",
+  messagingSenderId: "805076809980",
+  appId: "1:805076809980:web:051c070268a2a0f6f0bf79"
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getFirestore(firebaseApp);
+const sharedDocRef = doc(db, "shared", "milena-daniel-travels");
 
 const EXTRA_SECTIONS = [
   { id: "costs", icon: "📊", title: "Szacunkowe koszty", subtitle: "Szybka estymacja kosztów wyjazdu." },
@@ -158,7 +173,7 @@ const demoTrips = [
     startDate: "2026-06-12",
     endDate: "2026-06-16",
     note: "Pierwszy szkic wspólnego city breaku.",
-    updatedBy: "Daniel",
+    updatedBy: "Wspólnie",
     reservations: [],
     checklists: createDefaultChecklists(),
     costs: { km: 3000, days: 5, people: 2, fuelPrice: 6.5, breakfastIncluded: true, standard: "standard", transport: "car" },
@@ -171,7 +186,7 @@ const demoTrips = [
           address: "https://www.booking.com",
           description: "Link do noclegu lub rezerwacji jest klikalny.",
           completed: false,
-          updatedBy: "Daniel"
+          updatedBy: "Wspólnie"
         }
       ]
     }
@@ -195,7 +210,9 @@ function SectionShell({ activeExtra, onBack, children }) {
 }
 
 export default function App() {
-  const [user, setUser] = useState(() => localStorage.getItem("mdt-user") || "Daniel");
+  const [syncStatus, setSyncStatus] = useState("Łączenie z chmurą...");
+  const [cloudLoaded, setCloudLoaded] = useState(false);
+  const lastSavedSignatureRef = useRef("");
   const [trips, setTrips] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem(STORAGE_KEY)) || demoTrips;
@@ -219,8 +236,66 @@ export default function App() {
   const [checklistForm, setChecklistForm] = useState({ category: "Dokumenty", text: "" });
   const [activeChecklistCategory, setActiveChecklistCategory] = useState("Dokumenty");
 
-  useEffect(() => localStorage.setItem(STORAGE_KEY, JSON.stringify(trips)), [trips]);
-  useEffect(() => localStorage.setItem("mdt-user", user), [user]);
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(trips));
+  }, [trips]);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(
+      sharedDocRef,
+      async (snapshot) => {
+        if (snapshot.exists()) {
+          const cloudTrips = snapshot.data()?.trips;
+          if (Array.isArray(cloudTrips)) {
+            const signature = JSON.stringify(cloudTrips);
+            lastSavedSignatureRef.current = signature;
+            setTrips(cloudTrips);
+            localStorage.setItem(STORAGE_KEY, signature);
+          }
+          setSyncStatus("Zapis w chmurze aktywny");
+          setCloudLoaded(true);
+        } else {
+          await setDoc(sharedDocRef, {
+            trips,
+            updatedAt: serverTimestamp()
+          });
+          lastSavedSignatureRef.current = JSON.stringify(trips);
+          setSyncStatus("Utworzono wspólną bazę podróży");
+          setCloudLoaded(true);
+        }
+      },
+      (error) => {
+        console.error(error);
+        setSyncStatus("Błąd synchronizacji — sprawdź reguły Firestore");
+        setCloudLoaded(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!cloudLoaded) return;
+
+    const signature = JSON.stringify(trips);
+    if (signature === lastSavedSignatureRef.current) return;
+
+    const timeout = setTimeout(async () => {
+      try {
+        await setDoc(sharedDocRef, {
+          trips,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+        lastSavedSignatureRef.current = signature;
+        setSyncStatus("Zapisano w chmurze");
+      } catch (error) {
+        console.error(error);
+        setSyncStatus("Nie udało się zapisać w chmurze");
+      }
+    }, 500);
+
+    return () => clearTimeout(timeout);
+  }, [trips, cloudLoaded]);
 
   const selectedTrip = useMemo(() => trips.find((trip) => trip.id === selectedTripId) || trips[0], [trips, selectedTripId]);
   const days = useMemo(() => selectedTrip ? range(selectedTrip.startDate, selectedTrip.endDate) : [], [selectedTrip]);
@@ -234,7 +309,7 @@ export default function App() {
     setTrips((current) => current.map((trip) => {
       if (trip.id !== selectedTrip.id) return trip;
       const nextTrip = updater(trip);
-      return { ...nextTrip, updatedBy: user };
+      return { ...nextTrip, updatedBy: "Wspólnie" };
     }));
   }
 
@@ -256,7 +331,7 @@ export default function App() {
       startDate: tripForm.startDate,
       endDate: tripForm.endDate,
       note: tripForm.note.trim(),
-      updatedBy: user,
+      updatedBy: "Wspólnie",
       reservations: [],
       checklists: createDefaultChecklists(),
       costs: { km: "", days: tripDays.length, people: 2, fuelPrice: 6.5, breakfastIncluded: false, standard: "standard", transport: "car" },
@@ -288,7 +363,7 @@ export default function App() {
       address: activityForm.address.trim(),
       description: activityForm.description.trim(),
       completed: existing?.completed || false,
-      updatedBy: user
+      updatedBy: "Wspólnie"
     };
     updateTrip((trip) => {
       const currentActivities = trip.days?.[selectedDay] || [];
@@ -318,7 +393,7 @@ export default function App() {
       days: {
         ...trip.days,
         [selectedDay]: (trip.days?.[selectedDay] || []).map((item) =>
-          item.id === activityId ? { ...item, completed: !item.completed, updatedBy: user } : item
+          item.id === activityId ? { ...item, completed: !item.completed, updatedBy: "Wspólnie" } : item
         )
       }
     }));
@@ -335,7 +410,7 @@ export default function App() {
       days: {
         ...trip.days,
         [selectedDay]: (trip.days?.[selectedDay] || []).filter((item) => item.id !== activity.id),
-        [nextDay]: [...(trip.days?.[nextDay] || []), { ...activity, completed: false, updatedBy: user }]
+        [nextDay]: [...(trip.days?.[nextDay] || []), { ...activity, completed: false, updatedBy: "Wspólnie" }]
       }
     }));
   }
@@ -370,7 +445,7 @@ export default function App() {
       link: reservationForm.link.trim(),
       cost: Number(reservationForm.cost || 0),
       note: reservationForm.note.trim(),
-      updatedBy: user
+      updatedBy: "Wspólnie"
     };
     updateTrip((trip) => ({ ...trip, reservations: [...(trip.reservations || []), item] }));
     setReservationForm({ type: "Hotel", name: "", date: "", link: "", cost: "", note: "" });
@@ -384,7 +459,7 @@ export default function App() {
   function saveChecklistItem(e) {
     e.preventDefault();
     if (!checklistForm.text.trim()) return;
-    const item = { id: id(), text: checklistForm.text.trim(), done: false, updatedBy: user };
+    const item = { id: id(), text: checklistForm.text.trim(), done: false, updatedBy: "Wspólnie" };
     updateTrip((trip) => {
       const current = ensureChecklist(trip);
       const categoryItems = current[checklistForm.category] || [];
@@ -442,18 +517,12 @@ export default function App() {
         <h1>Milena & Daniel Travels</h1>
         <p className="subtitle">Minimalistyczny planer Waszych wspólnych podróży.</p>
 
-        <div className="card compact">
-          <strong>Kto teraz planuje?</strong>
-          <div className="switch">
-            {["Daniel", "Milena"].map((name) => (
-              <button key={name} className={user === name ? "active" : ""} onClick={() => setUser(name)}>{name}</button>
-            ))}
+        <div className="sync-pill">
+          <span>☁️</span>
+          <div>
+            <strong>Wspólna chmura</strong>
+            <small>{syncStatus}</small>
           </div>
-        </div>
-
-        <div className="cloud-note">
-          <strong>Na razie zapis lokalny</strong>
-          <span>Po testach dołożymy Firebase, żeby dane synchronizowały się między Wami.</span>
         </div>
 
         <button className="primary" onClick={() => setShowTripForm(!showTripForm)}>+ Dodaj podróż</button>

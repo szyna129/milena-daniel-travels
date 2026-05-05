@@ -5,3 +5,8 @@
 .category-tabs button span{font-size:11px;opacity:.72}
 .checklist-grid.single{grid-template-columns:1fr}
 @media(max-width:900px){.category-tabs button{min-width:132px}}
+
+.sync-pill{margin:24px 0 16px;display:flex;gap:10px;align-items:flex-start;border:1px solid #e7e5e4;background:#fff;border-radius:24px;padding:14px 16px;box-shadow:0 8px 24px rgba(28,25,23,.06)}
+.sync-pill span{font-size:22px}
+.sync-pill strong{display:block;font-size:14px}
+.sync-pill small{display:block;color:#78716c;margin-top:3px;line-height:1.35}
