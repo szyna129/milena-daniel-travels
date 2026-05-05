@@ -241,6 +241,10 @@ export default function App() {
   return (
     <div className="app">
       <aside className="sidebar">
+        <div className="visual-card">
+          <img src="/travel-hero.png" alt="Milena & Daniel Travels" />
+        </div>
+
         <div className="brand-pill">✈️ Private travel planner</div>
         <h1>Milena & Daniel Travels</h1>
         <p className="subtitle">Minimalistyczny planer Waszych wspólnych podróży.</p>
@@ -292,7 +296,7 @@ export default function App() {
         ) : (
           <>
             <section className="hero">
-              <div>
+              <div className="hero-copy">
                 <span className="pill">{days.length} dni podróży</span>
                 <h2>{selectedTrip.title}</h2>
                 <p>{selectedTrip.note || "Plan wspólnej podróży, dzień po dniu."}</p>
