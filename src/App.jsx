@@ -546,10 +546,7 @@ export default function App() {
 
   return (
     <div className="app">
-      <aside
-        className="sidebar"
-        style={selectedTrip?.coverImage ? { "--sidebar-cover": `url("${selectedTrip.coverImage}")` } : undefined}
-      >
+      <aside className="sidebar">
         <div className="sidebar-cover-bg" />
         <div className="brand-pill">✈️ Private travel planner</div>
         <h1>Milena & Daniel Travels</h1>
@@ -597,7 +594,11 @@ export default function App() {
           <>
             <section
               className="hero"
-              style={selectedTrip.coverImage ? { backgroundImage: `linear-gradient(90deg,rgba(0,0,0,.68),rgba(0,0,0,.32),rgba(0,0,0,.14)), url("${selectedTrip.coverImage}")` } : undefined}
+              style={{
+                backgroundImage: selectedTrip.coverImage
+                  ? `linear-gradient(90deg,rgba(0,0,0,.68),rgba(0,0,0,.32),rgba(0,0,0,.14)), url("${selectedTrip.coverImage}")`
+                  : `linear-gradient(90deg,rgba(0,0,0,.62),rgba(0,0,0,.30),rgba(0,0,0,.12)), url('https://images.unsplash.com/photo-1502920917128-1aa500764cbd?q=80&w=1600&auto=format&fit=crop')`
+              }}
             >
               <div className="hero-content">
                 <span className="pill">{days.length} dni podróży</span>

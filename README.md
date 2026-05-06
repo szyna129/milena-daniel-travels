@@ -1,9 +1,7 @@
-# Milena & Daniel Travels v14
+# Milena & Daniel Travels v15
 
-Nowości:
-- Każda podróż może mieć własne zdjęcie tła.
-- W menu ⋯ dodano opcję „Zmień zdjęcie podróży”.
-- Zdjęcie można dodać jako link URL.
-- Zdjęcie podróży ustawia tło hero.
-- W lewym nagłówku aplikacji pojawia się subtelne tło aktywnej podróży.
+Poprawki:
+- Branding aplikacji (auto + pies) jest teraz stały.
+- Zdjęcie podróży zmienia tylko banner konkretnej podróży.
+- Domyślne zdjęcie podróży jest neutralne/travelowe.
 - Firebase i synchronizacja pozostają zachowane.
