@@ -173,6 +173,7 @@ const demoTrips = [
     startDate: "2026-06-12",
     endDate: "2026-06-16",
     note: "Pierwszy szkic wspólnego city breaku.",
+    coverImage: "",
     updatedBy: "Wspólnie",
     reservations: [],
     checklists: createDefaultChecklists(),
@@ -230,6 +231,8 @@ export default function App() {
   const [activityForm, setActivityForm] = useState({ time: "", title: "", address: "", description: "" });
   const [showTripMenu, setShowTripMenu] = useState(false);
   const [activeSection, setActiveSection] = useState("plan");
+  const [showCoverForm, setShowCoverForm] = useState(false);
+  const [coverImageInput, setCoverImageInput] = useState("");
 
   const [reservationForm, setReservationForm] = useState({ type: "Hotel", name: "", date: "", link: "", cost: "", note: "" });
   const [showReservationForm, setShowReservationForm] = useState(false);
@@ -331,6 +334,7 @@ export default function App() {
       startDate: tripForm.startDate,
       endDate: tripForm.endDate,
       note: tripForm.note.trim(),
+      coverImage: "",
       updatedBy: "Wspólnie",
       reservations: [],
       checklists: createDefaultChecklists(),
@@ -440,6 +444,30 @@ export default function App() {
     setEditingActivityId(null);
   }
 
+  function openCoverForm() {
+    setCoverImageInput(selectedTrip?.coverImage || "");
+    setShowTripMenu(false);
+    setShowCoverForm(true);
+  }
+
+  function saveCoverImage(e) {
+    e.preventDefault();
+    updateTrip((trip) => ({
+      ...trip,
+      coverImage: coverImageInput.trim()
+    }));
+    setShowCoverForm(false);
+  }
+
+  function removeCoverImage() {
+    updateTrip((trip) => ({
+      ...trip,
+      coverImage: ""
+    }));
+    setCoverImageInput("");
+    setShowCoverForm(false);
+  }
+
   function saveReservation(e) {
     e.preventDefault();
     if (!reservationForm.name.trim()) return;
@@ -518,7 +546,11 @@ export default function App() {
 
   return (
     <div className="app">
-      <aside className="sidebar">
+      <aside
+        className="sidebar"
+        style={selectedTrip?.coverImage ? { "--sidebar-cover": `url("${selectedTrip.coverImage}")` } : undefined}
+      >
+        <div className="sidebar-cover-bg" />
         <div className="brand-pill">✈️ Private travel planner</div>
         <h1>Milena & Daniel Travels</h1>
         <p className="subtitle">Minimalistyczny planer Waszych wspólnych podróży.</p>
@@ -563,7 +595,10 @@ export default function App() {
           <div className="empty"><h2>Dodaj pierwszą podróż</h2><p>Po dodaniu podróży pojawi się tutaj plan dzień po dniu.</p></div>
         ) : (
           <>
-            <section className="hero">
+            <section
+              className="hero"
+              style={selectedTrip.coverImage ? { backgroundImage: `linear-gradient(90deg,rgba(0,0,0,.68),rgba(0,0,0,.32),rgba(0,0,0,.14)), url("${selectedTrip.coverImage}")` } : undefined}
+            >
               <div className="hero-content">
                 <span className="pill">{days.length} dni podróży</span>
                 <h2>{selectedTrip.title}</h2>
@@ -579,6 +614,8 @@ export default function App() {
                       {EXTRA_SECTIONS.map((section) => (
                         <button key={section.id} onClick={() => openSection(section.id)}>{section.icon} {section.title}</button>
                       ))}
+
+                      <button onClick={openCoverForm}>🖼️ Zmień zdjęcie podróży</button>
 
                       <div className="trip-menu-divider" />
 
@@ -597,6 +634,34 @@ export default function App() {
                 <button className="ghost" onClick={() => deleteTrip(selectedTrip.id)}>Usuń</button>
               </div>
             </section>
+
+            {showCoverForm && (
+              <div className="cover-modal-backdrop" onClick={() => setShowCoverForm(false)}>
+                <form className="cover-modal" onSubmit={saveCoverImage} onClick={(e) => e.stopPropagation()}>
+                  <div>
+                    <h3>Zdjęcie podróży</h3>
+                    <p>Wklej link do zdjęcia z internetu. To zdjęcie stanie się tłem tej podróży.</p>
+                  </div>
+
+                  <input
+                    autoFocus
+                    placeholder="https://..."
+                    value={coverImageInput}
+                    onChange={(e) => setCoverImageInput(e.target.value)}
+                  />
+
+                  {coverImageInput.trim() && (
+                    <div className="cover-preview" style={{ backgroundImage: `url("${coverImageInput.trim()}")` }} />
+                  )}
+
+                  <div className="cover-actions">
+                    <button className="dark">Zapisz zdjęcie</button>
+                    <button type="button" className="light" onClick={() => setShowCoverForm(false)}>Anuluj</button>
+                    {selectedTrip.coverImage && <button type="button" className="remove-cover" onClick={removeCoverImage}>Usuń zdjęcie</button>}
+                  </div>
+                </form>
+              </div>
+            )}
 
             {activeSection === "costs" && activeExtra && (
               <SectionShell activeExtra={activeExtra} onBack={() => setActiveSection("plan")}>
