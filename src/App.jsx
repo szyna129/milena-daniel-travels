@@ -233,6 +233,7 @@ export default function App() {
   const [activeSection, setActiveSection] = useState("plan");
   const [showCoverForm, setShowCoverForm] = useState(false);
   const [coverImageInput, setCoverImageInput] = useState("");
+  const [showEditTripForm, setShowEditTripForm] = useState(false);
 
   const [reservationForm, setReservationForm] = useState({ type: "Hotel", name: "", date: "", link: "", cost: "", note: "" });
   const [showReservationForm, setShowReservationForm] = useState(false);
@@ -444,7 +445,67 @@ export default function App() {
     setEditingActivityId(null);
   }
 
-  function openCoverForm() {
+  
+  function openEditTripForm() {
+    setTripForm({
+      title: selectedTrip?.title || "",
+      location: selectedTrip?.location || "",
+      startDate: selectedTrip?.startDate || "",
+      endDate: selectedTrip?.endDate || "",
+      note: selectedTrip?.note || ""
+    });
+
+    setShowTripMenu(false);
+    setShowEditTripForm(true);
+  }
+
+  function saveTripEdit(e) {
+    e.preventDefault();
+
+    const start = parseDate(tripForm.startDate);
+    const end = parseDate(tripForm.endDate);
+
+    if (!tripForm.title.trim() || !start || !end || start > end) {
+      alert("Uzupełnij poprawnie nazwę oraz daty podróży.");
+      return;
+    }
+
+    const nextDayKeys = range(tripForm.startDate, tripForm.endDate);
+    const oldDayKeys = range(selectedTrip.startDate, selectedTrip.endDate);
+    const removedDayKeys = oldDayKeys.filter((day) => !nextDayKeys.includes(day));
+    const removedHasPlan = removedDayKeys.some((day) => (selectedTrip.days?.[day] || []).length > 0);
+
+    if (removedHasPlan) {
+      const confirmDelete = window.confirm("Zmniejszasz zakres dat. Plan z usuniętych dni zostanie skasowany. Kontynuować?");
+      if (!confirmDelete) return;
+    }
+
+    updateTrip((trip) => {
+      const nextDays = {};
+      nextDayKeys.forEach((day) => {
+        nextDays[day] = trip.days?.[day] || [];
+      });
+
+      return {
+        ...trip,
+        title: tripForm.title.trim(),
+        location: tripForm.location.trim() || "Do ustalenia",
+        startDate: tripForm.startDate,
+        endDate: tripForm.endDate,
+        note: tripForm.note.trim(),
+        days: nextDays,
+        costs: {
+          ...(trip.costs || {}),
+          days: nextDayKeys.length
+        }
+      };
+    });
+
+    setSelectedDay(nextDayKeys[0] || null);
+    setShowEditTripForm(false);
+  }
+
+function openCoverForm() {
     setCoverImageInput(selectedTrip?.coverImage || "");
     setShowTripMenu(false);
     setShowCoverForm(true);
@@ -615,6 +676,7 @@ export default function App() {
                       {EXTRA_SECTIONS.map((section) => (
                         <button key={section.id} onClick={() => openSection(section.id)}>{section.icon} {section.title}</button>
                       ))}
+<button onClick={openEditTripForm}>✏️ Edytuj podróż</button>
 
                       <button onClick={openCoverForm}>🖼️ Zmień zdjęcie podróży</button>
 
@@ -636,7 +698,58 @@ export default function App() {
               </div>
             </section>
 
-            {showCoverForm && (
+            
+            {showEditTripForm && (
+              <div className="cover-modal-backdrop" onClick={() => setShowEditTripForm(false)}>
+                <form className="cover-modal" onSubmit={saveTripEdit} onClick={(e) => e.stopPropagation()}>
+                  <div>
+                    <h3>Edytuj podróż</h3>
+                    <p>Zmień nazwę, daty lub opis podróży.</p>
+                  </div>
+
+                  <input
+                    placeholder="Nazwa podróży"
+                    value={tripForm.title}
+                    onChange={(e) => setTripForm((prev) => ({ ...prev, title: e.target.value }))}
+                  />
+
+                  <input
+                    placeholder="Lokalizacja"
+                    value={tripForm.location}
+                    onChange={(e) => setTripForm((prev) => ({ ...prev, location: e.target.value }))}
+                  />
+
+                  <div className="date-grid">
+                    <input
+                      type="date"
+                      value={tripForm.startDate}
+                      onChange={(e) => setTripForm((prev) => ({ ...prev, startDate: e.target.value }))}
+                    />
+
+                    <input
+                      type="date"
+                      value={tripForm.endDate}
+                      onChange={(e) => setTripForm((prev) => ({ ...prev, endDate: e.target.value }))}
+                    />
+                  </div>
+
+                  <textarea
+                    placeholder="Opis podróży"
+                    value={tripForm.note}
+                    onChange={(e) => setTripForm((prev) => ({ ...prev, note: e.target.value }))}
+                  />
+
+                  <div className="cover-actions">
+                    <button className="dark">Zapisz zmiany</button>
+                    <button type="button" className="light" onClick={() => setShowEditTripForm(false)}>
+                      Anuluj
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+{showCoverForm && (
               <div className="cover-modal-backdrop" onClick={() => setShowCoverForm(false)}>
                 <form className="cover-modal" onSubmit={saveCoverImage} onClick={(e) => e.stopPropagation()}>
                   <div>

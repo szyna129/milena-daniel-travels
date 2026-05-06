@@ -1,7 +1,8 @@
-# Milena & Daniel Travels v15
+# Milena & Daniel Travels v17
 
-Poprawki:
-- Branding aplikacji (auto + pies) jest teraz stały.
-- Zdjęcie podróży zmienia tylko banner konkretnej podróży.
-- Domyślne zdjęcie podróży jest neutralne/travelowe.
-- Firebase i synchronizacja pozostają zachowane.
+Poprawka:
+- ✏️ Edytuj podróż jest widoczne w menu ⋯.
+- Edycja działa dla aktualnej struktury dni zapisanej po datach.
+- Można zmienić nazwę, lokalizację, daty i opis.
+- Przy usuwaniu dni z istniejącym planem pojawia się ostrzeżenie.
+- Firebase i synchronizacja zachowane.
